@@ -1,0 +1,62 @@
+{
+  "name": "matflow",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Système complet de gestion de stock circulant pour l'événementiel",
+  "keywords": [
+    "inventory",
+    "stock-management",
+    "event-management",
+    "equipment-tracking"
+  ],
+  "license": "UNLICENSED",
+  "author": "MatFlow Team",
+  "scripts": {
+    "dev": "pnpm run --parallel dev",
+    "dev:server": "pnpm --filter @matflow/server dev",
+    "dev:web": "pnpm --filter @matflow/web dev",
+    "dev:mobile": "pnpm --filter @matflow/mobile start",
+    "dev:desktop": "pnpm --filter @matflow/desktop dev",
+    "build": "pnpm run --parallel build",
+    "build:server": "pnpm --filter @matflow/server build",
+    "build:web": "pnpm --filter @matflow/web build",
+    "build:mobile": "pnpm --filter @matflow/mobile build",
+    "build:desktop": "pnpm --filter @matflow/desktop build",
+    "lint": "pnpm run --parallel lint",
+    "lint:fix": "pnpm run --parallel lint:fix",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md}\"",
+    "test": "pnpm run --parallel test",
+    "test:server": "pnpm --filter @matflow/server test",
+    "test:web": "pnpm --filter @matflow/web test",
+    "test:e2e": "pnpm --filter @matflow/web test:e2e",
+    "typecheck": "pnpm run --parallel typecheck",
+    "db:generate": "pnpm --filter @matflow/server db:generate",
+    "db:migrate": "pnpm --filter @matflow/server db:migrate",
+    "db:push": "pnpm --filter @matflow/server db:push",
+    "db:seed": "pnpm --filter @matflow/server db:seed",
+    "db:studio": "pnpm --filter @matflow/server db:studio",
+    "db:reset": "pnpm --filter @matflow/server db:reset",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down",
+    "docker:logs": "docker-compose logs -f",
+    "docker:tools": "docker-compose --profile tools up -d",
+    "clean": "pnpm run --parallel clean && rm -rf node_modules",
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^19.0.0",
+    "@commitlint/config-conventional": "^19.0.0",
+    "@types/node": "^20.11.0",
+    "husky": "^9.0.0",
+    "lint-staged": "^15.2.0",
+    "prettier": "^3.2.0",
+    "turbo": "^2.0.0",
+    "typescript": "^5.3.0"
+  },
+  "packageManager": "pnpm@9.0.0",
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=9.0.0"
+  }
+}

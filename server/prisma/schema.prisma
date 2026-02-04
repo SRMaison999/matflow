@@ -1,0 +1,1562 @@
+// =====================================================
+// MatFlow - Prisma Database Schema
+// =====================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// =====================================================
+// ORGANIZATION & BRANCHES
+// =====================================================
+
+model Organization {
+  id                   String   @id @default(uuid())
+  code                 String   @unique
+  name                 String
+  legalName            String?
+  description          String?
+  logoUrl              String?
+  faviconUrl           String?
+  vatNumber            String?
+  registrationNumber   String?
+  legalForm            String?
+  address              Json     // Address type
+  contact              Json     // ContactInfo type
+  defaultCurrency      Currency @default(CHF)
+  defaultLanguage      Language @default(fr)
+  timezone             String   @default("Europe/Zurich")
+  fiscalYearStartMonth Int      @default(1)
+  fiscalYearStartDay   Int      @default(1)
+  enabledModules       String[]
+  settings             Json     // OrganizationSettings
+  subscriptionPlan     String?
+  subscriptionExpiresAt DateTime?
+  maxUsers             Int?
+  maxBranches          Int?
+  maxArticles          Int?
+  createdAt            DateTime @default(now())
+  createdBy            String?
+  updatedAt            DateTime @updatedAt
+  updatedBy            String?
+  deletedAt            DateTime?
+  deletedBy            String?
+
+  branches             Branch[]
+
+  @@map("organizations")
+}
+
+model Branch {
+  id                   String     @id @default(uuid())
+  code                 String     @unique
+  name                 String
+  nameLocalized        Json?      // LocalizedString
+  description          String?
+  type                 BranchType @default(BRANCH)
+  organizationId       String
+  parentBranchId       String?
+  address              Json       // Address type
+  contact              Json       // ContactInfo type
+  currency             Currency   @default(CHF)
+  language             Language   @default(fr)
+  timezone             String     @default("Europe/Zurich")
+  managerIds           String[]
+  isActive             Boolean    @default(true)
+  isHeadquarters       Boolean    @default(false)
+  hasLocalStock        Boolean    @default(true)
+  canAccessCentralStock Boolean   @default(false)
+  canTransferTo        String[]
+  canTransferFrom      String[]
+  separateBilling      Boolean    @default(false)
+  internalBillingRate  Decimal?   @db.Decimal(5, 2)
+  bankDetails          Json?      // BankDetails
+  workingHours         Json?      // WorkingHours
+  createdAt            DateTime   @default(now())
+  createdBy            String?
+  updatedAt            DateTime   @updatedAt
+  updatedBy            String?
+  deletedAt            DateTime?
+  deletedBy            String?
+
+  organization         Organization @relation(fields: [organizationId], references: [id])
+  parentBranch         Branch?      @relation("BranchHierarchy", fields: [parentBranchId], references: [id])
+  childBranches        Branch[]     @relation("BranchHierarchy")
+  users                User[]
+  articles             Article[]
+  locations            Location[]
+  projects             Project[]
+  reservations         Reservation[]
+  kits                 Kit[]
+  cases                Case[]
+  maintenanceTasks     MaintenanceTask[]
+  quotes               Quote[]
+  invoices             Invoice[]
+  notifications        Notification[]
+  transfersFrom        BranchTransfer[] @relation("TransferFrom")
+  transfersTo          BranchTransfer[] @relation("TransferTo")
+
+  @@map("branches")
+}
+
+// =====================================================
+// USERS & AUTHENTICATION
+// =====================================================
+
+model User {
+  id                    String     @id @default(uuid())
+  email                 String     @unique
+  username              String     @unique
+  passwordHash          String
+  firstName             String
+  lastName              String
+  displayName           String
+  avatarUrl             String?
+  role                  UserRole   @default(TECHNICIAN)
+  status                UserStatus @default(PENDING)
+  branchId              String
+  branchIds             String[]
+  language              Language   @default(fr)
+  timezone              String     @default("Europe/Zurich")
+  phone                 String?
+  mobile                String?
+  jobTitle              String?
+  department            String?
+  lastLoginAt           DateTime?
+  lastActivityAt        DateTime?
+  emailVerifiedAt       DateTime?
+  passwordChangedAt     DateTime?
+  twoFactorEnabled      Boolean    @default(false)
+  twoFactorSecret       String?
+  notificationPrefs     Json       // NotificationPreferences
+  permissions           String[]
+  metadata              Json?
+  createdAt             DateTime   @default(now())
+  createdBy             String?
+  updatedAt             DateTime   @updatedAt
+  updatedBy             String?
+  deletedAt             DateTime?
+  deletedBy             String?
+
+  branch                Branch     @relation(fields: [branchId], references: [id])
+  sessions              UserSession[]
+  refreshTokens         RefreshToken[]
+  notifications         Notification[]
+  auditLogs             AuditLog[]
+  createdArticles       Article[]  @relation("ArticleCreator")
+  createdProjects       Project[]  @relation("ProjectCreator")
+  managedProjects       Project[]  @relation("ProjectManager")
+  createdReservations   Reservation[] @relation("ReservationCreator")
+  maintenanceTasks      MaintenanceTask[] @relation("MaintenanceAssignee")
+  performedMaintenance  MaintenanceTask[] @relation("MaintenancePerformer")
+
+  @@map("users")
+}
+
+model UserSession {
+  id              String   @id @default(uuid())
+  userId          String
+  userAgent       String?
+  ipAddress       String?
+  expiresAt       DateTime
+  lastActivityAt  DateTime @default(now())
+  createdAt       DateTime @default(now())
+
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_sessions")
+}
+
+model RefreshToken {
+  id          String   @id @default(uuid())
+  userId      String
+  token       String   @unique
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("refresh_tokens")
+}
+
+// =====================================================
+// ARTICLES & CATEGORIES
+// =====================================================
+
+model Category {
+  id               String   @id @default(uuid())
+  name             String
+  slug             String   @unique
+  description      String?
+  parentId         String?
+  path             String   // Materialized path
+  depth            Int      @default(0)
+  sortOrder        Int      @default(0)
+  icon             String?
+  color            String?
+  isActive         Boolean  @default(true)
+  customAttributes Json[]   // CategoryAttribute[]
+  createdAt        DateTime @default(now())
+  createdBy        String?
+  updatedAt        DateTime @updatedAt
+  updatedBy        String?
+
+  parent           Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id])
+  children         Category[] @relation("CategoryHierarchy")
+  articles         Article[]
+
+  @@map("categories")
+}
+
+model Article {
+  id                    String          @id @default(uuid())
+  code                  String          @unique
+  barcode               String?
+  serialNumber          String?
+  name                  String
+  nameLocalized         Json?           // LocalizedString
+  description           String?
+  descriptionLocalized  Json?           // LocalizedString
+  type                  ArticleType     @default(SERIALIZED)
+  categoryId            String
+  tags                  String[]
+  brand                 String?
+  model                 String?
+  manufacturer          String?
+  status                ArticleStatus   @default(AVAILABLE)
+  condition             ArticleCondition @default(GOOD)
+  conditionNotes        String?
+  isActive              Boolean         @default(true)
+  dimensions            Json?           // Dimensions
+  weight                Json?           // Weight
+  color                 String?
+  purchasePrice         Json?           // Money
+  purchaseDate          DateTime?
+  currentValue          Json?           // Money
+  replacementValue      Json?           // Money
+  insuranceValue        Json?           // Money
+  rentalPriceDaily      Json?           // Money
+  rentalPriceWeekly     Json?           // Money
+  depreciationRate      Decimal?        @db.Decimal(5, 2)
+  branchId              String
+  locationId            String?
+  caseId                String?
+  kitId                 String?
+  minStock              Int?
+  maxStock              Int?
+  reorderPoint          Int?
+  quantity              Int             @default(1)
+  unit                  String?
+  lotNumber             String?
+  lastMaintenanceDate   DateTime?
+  nextMaintenanceDate   DateTime?
+  maintenanceIntervalDays Int?
+  totalUsageHours       Decimal?        @db.Decimal(10, 2)
+  warrantyExpiresAt     DateTime?
+  primaryImageUrl       String?
+  images                Json[]          // FileInfo[]
+  documents             Json[]          // FileInfo[]
+  technicalSpecsUrl     String?
+  manualUrl             String?
+  customAttributes      Json            @default("{}")
+  qrCode                String?
+  acquisitionSource     String?
+  disposalDate          DateTime?
+  disposalReason        String?
+  disposalNotes         String?
+  createdAt             DateTime        @default(now())
+  createdBy             String?
+  updatedAt             DateTime        @updatedAt
+  updatedBy             String?
+  deletedAt             DateTime?
+  deletedBy             String?
+
+  category              Category        @relation(fields: [categoryId], references: [id])
+  branch                Branch          @relation(fields: [branchId], references: [id])
+  location              Location?       @relation(fields: [locationId], references: [id])
+  case                  Case?           @relation(fields: [caseId], references: [id])
+  kit                   Kit?            @relation(fields: [kitId], references: [id])
+  creator               User?           @relation("ArticleCreator", fields: [createdBy], references: [id])
+  stockEntries          StockEntry[]
+  stockMovements        StockMovement[]
+  reservationItems      ReservationItem[]
+  kitComponents         KitComponent[]
+  maintenanceTasks      MaintenanceTask[]
+  incidents             Incident[]
+
+  @@index([code])
+  @@index([barcode])
+  @@index([serialNumber])
+  @@index([status])
+  @@index([branchId])
+  @@index([categoryId])
+  @@map("articles")
+}
+
+// =====================================================
+// STOCK & LOCATIONS
+// =====================================================
+
+model Location {
+  id               String       @id @default(uuid())
+  code             String       @unique
+  name             String
+  type             LocationType @default(ZONE)
+  branchId         String
+  parentId         String?
+  path             String       // Materialized path
+  depth            Int          @default(0)
+  description      String?
+  address          Json?        // Address
+  capacity         Int?
+  currentOccupancy Int          @default(0)
+  dimensions       Json?        // Dimensions
+  isActive         Boolean      @default(true)
+  sortOrder        Int          @default(0)
+  barcode          String?
+  qrCode           String?
+  metadata         Json?
+  createdAt        DateTime     @default(now())
+  createdBy        String?
+  updatedAt        DateTime     @updatedAt
+  updatedBy        String?
+
+  branch           Branch       @relation(fields: [branchId], references: [id])
+  parent           Location?    @relation("LocationHierarchy", fields: [parentId], references: [id])
+  children         Location[]   @relation("LocationHierarchy")
+  articles         Article[]
+  stockEntries     StockEntry[]
+  stockMovementsFrom StockMovement[] @relation("MovementFrom")
+  stockMovementsTo   StockMovement[] @relation("MovementTo")
+  cases            Case[]
+
+  @@index([branchId])
+  @@index([path])
+  @@map("locations")
+}
+
+model StockEntry {
+  id                String   @id @default(uuid())
+  articleId         String
+  locationId        String
+  branchId          String
+  quantity          Int
+  reservedQuantity  Int      @default(0)
+  availableQuantity Int
+  minStock          Int?
+  maxStock          Int?
+  reorderPoint      Int?
+  lastCountDate     DateTime?
+  lastCountQuantity Int?
+  notes             String?
+  createdAt         DateTime @default(now())
+  createdBy         String?
+  updatedAt         DateTime @updatedAt
+  updatedBy         String?
+
+  article           Article  @relation(fields: [articleId], references: [id])
+  location          Location @relation(fields: [locationId], references: [id])
+
+  @@unique([articleId, locationId])
+  @@map("stock_entries")
+}
+
+model StockMovement {
+  id               String            @id @default(uuid())
+  type             StockMovementType
+  articleId        String
+  quantity         Int
+  fromLocationId   String?
+  fromBranchId     String?
+  fromCaseId       String?
+  toLocationId     String?
+  toBranchId       String?
+  toCaseId         String?
+  referenceType    String?
+  referenceId      String?
+  reason           String?
+  notes            String?
+  previousStatus   ArticleStatus?
+  newStatus        ArticleStatus?
+  previousQuantity Int?
+  newQuantity      Int?
+  performedBy      String
+  performedAt      DateTime          @default(now())
+  validatedBy      String?
+  validatedAt      DateTime?
+  createdAt        DateTime          @default(now())
+
+  article          Article           @relation(fields: [articleId], references: [id])
+  fromLocation     Location?         @relation("MovementFrom", fields: [fromLocationId], references: [id])
+  toLocation       Location?         @relation("MovementTo", fields: [toLocationId], references: [id])
+
+  @@index([articleId])
+  @@index([performedAt])
+  @@map("stock_movements")
+}
+
+// =====================================================
+// CASES (Flight Cases)
+// =====================================================
+
+model Case {
+  id                    String     @id @default(uuid())
+  code                  String     @unique
+  name                  String
+  description           String?
+  branchId              String
+  locationId            String?
+  status                CaseStatus @default(EMPTY)
+  dimensions            Json?      // Dimensions
+  weight                Decimal?   @db.Decimal(10, 2)
+  maxWeight             Decimal?   @db.Decimal(10, 2)
+  barcode               String?
+  qrCode                String?
+  color                 String?
+  isReusable            Boolean    @default(true)
+  expectedContent       Json[]     // CaseContentItem[]
+  actualContent         Json[]     // CaseContentItem[]
+  currentProjectId      String?
+  currentReservationId  String?
+  lastVerifiedAt        DateTime?
+  lastVerifiedBy        String?
+  notes                 String?
+  metadata              Json?
+  createdAt             DateTime   @default(now())
+  createdBy             String?
+  updatedAt             DateTime   @updatedAt
+  updatedBy             String?
+
+  branch                Branch      @relation(fields: [branchId], references: [id])
+  location              Location?   @relation(fields: [locationId], references: [id])
+  articles              Article[]
+
+  @@index([branchId])
+  @@map("cases")
+}
+
+// =====================================================
+// KITS
+// =====================================================
+
+model KitTemplate {
+  id                  String   @id @default(uuid())
+  code                String   @unique
+  name                String
+  nameLocalized       Json?    // LocalizedString
+  description         String?
+  descriptionLocalized Json?   // LocalizedString
+  categoryId          String?
+  branchId            String
+  components          Json[]   // KitTemplateComponent[]
+  totalComponents     Int      @default(0)
+  rentalPriceDaily    Json?    // Money
+  rentalPriceWeekly   Json?    // Money
+  assemblyTime        Int?     // Minutes
+  disassemblyTime     Int?
+  images              Json[]   // FileInfo[]
+  primaryImageUrl     String?
+  documents           Json[]   // FileInfo[]
+  isActive            Boolean  @default(true)
+  allowPartial        Boolean  @default(false)
+  requireVerification Boolean  @default(true)
+  notes               String?
+  tags                String[]
+  metadata            Json?
+  createdAt           DateTime @default(now())
+  createdBy           String?
+  updatedAt           DateTime @updatedAt
+  updatedBy           String?
+
+  kits                Kit[]
+
+  @@map("kit_templates")
+}
+
+model Kit {
+  id                    String    @id @default(uuid())
+  code                  String    @unique
+  name                  String
+  templateId            String?
+  status                KitStatus @default(DRAFT)
+  branchId              String
+  locationId            String?
+  caseId                String?
+  totalComponents       Int       @default(0)
+  assembledComponents   Int       @default(0)
+  assembledAt           DateTime?
+  assembledBy           String?
+  verifiedAt            DateTime?
+  verifiedBy            String?
+  dismantledAt          DateTime?
+  dismantledBy          String?
+  currentReservationId  String?
+  currentProjectId      String?
+  rentalPriceDaily      Json?     // Money
+  rentalPriceWeekly     Json?     // Money
+  qrCode                String?
+  notes                 String?
+  metadata              Json?
+  createdAt             DateTime  @default(now())
+  createdBy             String?
+  updatedAt             DateTime  @updatedAt
+  updatedBy             String?
+
+  template              KitTemplate? @relation(fields: [templateId], references: [id])
+  branch                Branch       @relation(fields: [branchId], references: [id])
+  components            KitComponent[]
+  articles              Article[]
+
+  @@index([branchId])
+  @@map("kits")
+}
+
+model KitComponent {
+  id               String          @id @default(uuid())
+  kitId            String
+  articleId        String
+  expectedQuantity Int
+  actualQuantity   Int             @default(0)
+  condition        ArticleCondition?
+  isSubstitute     Boolean         @default(false)
+  originalArticleId String?
+  status           String          @default("pending")
+  addedAt          DateTime?
+  addedBy          String?
+  notes            String?
+  createdAt        DateTime        @default(now())
+
+  kit              Kit             @relation(fields: [kitId], references: [id], onDelete: Cascade)
+  article          Article         @relation(fields: [articleId], references: [id])
+
+  @@map("kit_components")
+}
+
+// =====================================================
+// CLIENTS
+// =====================================================
+
+model Client {
+  id                  String   @id @default(uuid())
+  code                String   @unique
+  type                String   @default("company") // company | individual
+  name                String
+  legalName           String?
+  vatNumber           String?
+  registrationNumber  String?
+  billingAddress      Json     // Address
+  shippingAddress     Json?    // Address
+  contact             Json     // ContactInfo
+  primaryContactId    String?
+  contacts            Json[]   // ClientContact[]
+  paymentTerms        Int?     // Days
+  creditLimit         Json?    // Money
+  currentBalance      Json?    // Money
+  discountRate        Decimal? @db.Decimal(5, 2)
+  notes               String?
+  tags                String[]
+  isActive            Boolean  @default(true)
+  branchId            String
+  metadata            Json?
+  createdAt           DateTime @default(now())
+  createdBy           String?
+  updatedAt           DateTime @updatedAt
+  updatedBy           String?
+  deletedAt           DateTime?
+  deletedBy           String?
+
+  projects            Project[]
+  quotes              Quote[]
+  invoices            Invoice[]
+
+  @@index([branchId])
+  @@map("clients")
+}
+
+// =====================================================
+// PROJECTS & RESERVATIONS
+// =====================================================
+
+model Project {
+  id                String        @id @default(uuid())
+  code              String        @unique
+  name              String
+  description       String?
+  type              ProjectType   @default(RENTAL)
+  status            ProjectStatus @default(DRAFT)
+  clientId          String?
+  branchId          String
+  branchIds         String[]
+  managerId         String
+  teamMemberIds     String[]
+  startDate         DateTime
+  endDate           DateTime
+  setupDate         DateTime?
+  teardownDate      DateTime?
+  venueAddress      Json?         // Address
+  venueName         String?
+  venueContact      Json?         // ContactInfo
+  estimatedBudget   Json?         // Money
+  actualCost        Json?         // Money
+  documents         Json[]        // FileInfo[]
+  quoteId           String?
+  invoiceIds        String[]
+  notes             String?
+  internalNotes     String?
+  tags              String[]
+  color             String?
+  metadata          Json?
+  createdAt         DateTime      @default(now())
+  createdBy         String?
+  updatedAt         DateTime      @updatedAt
+  updatedBy         String?
+  deletedAt         DateTime?
+  deletedBy         String?
+
+  client            Client?       @relation(fields: [clientId], references: [id])
+  branch            Branch        @relation(fields: [branchId], references: [id])
+  manager           User          @relation("ProjectManager", fields: [managerId], references: [id])
+  creator           User?         @relation("ProjectCreator", fields: [createdBy], references: [id])
+  reservations      Reservation[]
+
+  @@index([status])
+  @@index([branchId])
+  @@index([startDate])
+  @@map("projects")
+}
+
+model Reservation {
+  id                  String            @id @default(uuid())
+  code                String            @unique
+  name                String?
+  status              ReservationStatus @default(DRAFT)
+  projectId           String
+  branchId            String
+  startDate           DateTime
+  endDate             DateTime
+  pickupDate          DateTime?
+  returnDate          DateTime?
+  actualPickupDate    DateTime?
+  actualReturnDate    DateTime?
+  deliveryAddress     Json?             // Address
+  pickupAddress       Json?             // Address
+  subtotal            Json              // Money
+  discount            Json?             // Money
+  discountRate        Decimal?          @db.Decimal(5, 2)
+  taxes               Json?             // Money
+  total               Json              // Money
+  preparedBy          String?
+  preparedAt          DateTime?
+  verifiedBy          String?
+  verifiedAt          DateTime?
+  dispatchedBy        String?
+  dispatchedAt        DateTime?
+  receivedBy          String?
+  receivedAt          DateTime?
+  notes               String?
+  internalNotes       String?
+  pickingNotes        String?
+  returnNotes         String?
+  parentReservationId String?
+  transferFromId      String?
+  metadata            Json?
+  createdAt           DateTime          @default(now())
+  createdBy           String?
+  updatedAt           DateTime          @updatedAt
+  updatedBy           String?
+  deletedAt           DateTime?
+  deletedBy           String?
+
+  project             Project           @relation(fields: [projectId], references: [id])
+  branch              Branch            @relation(fields: [branchId], references: [id])
+  creator             User?             @relation("ReservationCreator", fields: [createdBy], references: [id])
+  items               ReservationItem[]
+  pickingLists        PickingList[]
+  returnChecks        ReturnCheck[]
+
+  @@index([status])
+  @@index([projectId])
+  @@index([branchId])
+  @@index([startDate])
+  @@index([endDate])
+  @@map("reservations")
+}
+
+model ReservationItem {
+  id               String           @id @default(uuid())
+  reservationId    String
+  articleId        String
+  instanceId       String?
+  quantity         Int
+  pickedQuantity   Int              @default(0)
+  returnedQuantity Int              @default(0)
+  unitPrice        Json             // Money
+  totalPrice       Json             // Money
+  discount         Json?            // Money
+  status           String           @default("pending")
+  conditionOut     ArticleCondition?
+  conditionIn      ArticleCondition?
+  isSubstitute     Boolean          @default(false)
+  originalArticleId String?
+  notes            String?
+  returnNotes      String?
+  caseId           String?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  reservation      Reservation      @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+  article          Article          @relation(fields: [articleId], references: [id])
+  pickingItems     PickingItem[]
+  returnCheckItems ReturnCheckItem[]
+
+  @@map("reservation_items")
+}
+
+// =====================================================
+// OPERATIONS (Picking, Returns)
+// =====================================================
+
+model PickingList {
+  id                String        @id @default(uuid())
+  code              String        @unique
+  reservationId     String
+  branchId          String
+  status            PickingStatus @default(PENDING)
+  dueDate           DateTime
+  startedAt         DateTime?
+  completedAt       DateTime?
+  verifiedAt        DateTime?
+  assignedTo        String?
+  verifiedBy        String?
+  totalItems        Int           @default(0)
+  pickedItems       Int           @default(0)
+  priority          String        @default("normal")
+  notes             String?
+  pickingNotes      String?
+  metadata          Json?
+  createdAt         DateTime      @default(now())
+  createdBy         String?
+  updatedAt         DateTime      @updatedAt
+
+  reservation       Reservation   @relation(fields: [reservationId], references: [id])
+  items             PickingItem[]
+
+  @@index([status])
+  @@index([reservationId])
+  @@map("picking_lists")
+}
+
+model PickingItem {
+  id                 String           @id @default(uuid())
+  pickingListId      String
+  reservationItemId  String
+  articleId          String
+  locationId         String?
+  caseId             String?
+  requestedQuantity  Int
+  pickedQuantity     Int              @default(0)
+  status             String           @default("pending")
+  condition          ArticleCondition?
+  isSubstitute       Boolean          @default(false)
+  originalArticleId  String?
+  substituteReason   String?
+  scannedAt          DateTime?
+  scannedBy          String?
+  scanCode           String?
+  notes              String?
+  sortOrder          Int              @default(0)
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+
+  pickingList        PickingList      @relation(fields: [pickingListId], references: [id], onDelete: Cascade)
+  reservationItem    ReservationItem  @relation(fields: [reservationItemId], references: [id])
+
+  @@map("picking_items")
+}
+
+model ReturnCheck {
+  id                String            @id @default(uuid())
+  code              String            @unique
+  reservationId     String
+  branchId          String
+  status            ReturnCheckStatus @default(PENDING)
+  expectedDate      DateTime
+  actualDate        DateTime?
+  startedAt         DateTime?
+  completedAt       DateTime?
+  checkedBy         String?
+  validatedBy       String?
+  totalItems        Int               @default(0)
+  returnedItems     Int               @default(0)
+  discrepancyItems  Int               @default(0)
+  returnLocationId  String?
+  notes             String?
+  metadata          Json?
+  createdAt         DateTime          @default(now())
+  createdBy         String?
+  updatedAt         DateTime          @updatedAt
+
+  reservation       Reservation       @relation(fields: [reservationId], references: [id])
+  items             ReturnCheckItem[]
+  incidents         Incident[]
+
+  @@index([status])
+  @@index([reservationId])
+  @@map("return_checks")
+}
+
+model ReturnCheckItem {
+  id                  String           @id @default(uuid())
+  returnCheckId       String
+  reservationItemId   String
+  articleId           String
+  expectedQuantity    Int
+  returnedQuantity    Int              @default(0)
+  missingQuantity     Int              @default(0)
+  damagedQuantity     Int              @default(0)
+  conditionOut        ArticleCondition
+  conditionIn         ArticleCondition?
+  conditionNotes      String?
+  status              String           @default("pending")
+  hasDiscrepancy      Boolean          @default(false)
+  returnedToLocationId String?
+  returnedToCaseId    String?
+  scannedAt           DateTime?
+  scannedBy           String?
+  photos              Json[]           // FileInfo[]
+  incidentId          String?
+  notes               String?
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
+
+  returnCheck         ReturnCheck      @relation(fields: [returnCheckId], references: [id], onDelete: Cascade)
+  reservationItem     ReservationItem  @relation(fields: [reservationItemId], references: [id])
+
+  @@map("return_check_items")
+}
+
+// =====================================================
+// INCIDENTS
+// =====================================================
+
+model Incident {
+  id                String         @id @default(uuid())
+  code              String         @unique
+  type              IncidentType
+  status            IncidentStatus @default(REPORTED)
+  articleId         String
+  instanceId        String?
+  reservationId     String?
+  projectId         String?
+  returnCheckId     String?
+  title             String
+  description       String
+  quantity          Int            @default(1)
+  severity          String         @default("medium")
+  estimatedCost     Decimal?       @db.Decimal(10, 2)
+  actualCost        Decimal?       @db.Decimal(10, 2)
+  chargedToClient   Boolean        @default(false)
+  chargedAmount     Decimal?       @db.Decimal(10, 2)
+  insuranceClaimed  Boolean        @default(false)
+  insuranceClaimId  String?
+  resolution        String?
+  resolvedAt        DateTime?
+  resolvedBy        String?
+  assignedTo        String?
+  branchId          String
+  photos            Json[]         // FileInfo[]
+  documents         Json[]         // FileInfo[]
+  reportedBy        String
+  reportedAt        DateTime       @default(now())
+  notes             String?
+  metadata          Json?
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  article           Article        @relation(fields: [articleId], references: [id])
+  returnCheck       ReturnCheck?   @relation(fields: [returnCheckId], references: [id])
+
+  @@index([status])
+  @@index([articleId])
+  @@map("incidents")
+}
+
+// =====================================================
+// MAINTENANCE
+// =====================================================
+
+model MaintenanceTask {
+  id                   String              @id @default(uuid())
+  code                 String              @unique
+  type                 MaintenanceType
+  status               MaintenanceStatus   @default(SCHEDULED)
+  priority             MaintenancePriority @default(MEDIUM)
+  articleId            String
+  instanceId           String?
+  scheduledDate        DateTime
+  dueDate              DateTime?
+  startedAt            DateTime?
+  completedAt          DateTime?
+  estimatedDuration    Int?                // Minutes
+  actualDuration       Int?
+  assignedTo           String?
+  performedBy          String?
+  validatedBy          String?
+  branchId             String
+  locationId           String?
+  title                String
+  description          String?
+  instructions         String?
+  checklist            Json[]              // MaintenanceChecklistItem[]
+  checklistProgress    Int                 @default(0)
+  parts                Json[]              // MaintenancePart[]
+  laborCost            Json?               // Money
+  partsCost            Json?               // Money
+  totalCost            Json?               // Money
+  conditionBefore      ArticleCondition?
+  conditionAfter       ArticleCondition?
+  findings             String?
+  workPerformed        String?
+  recommendations      String?
+  nextMaintenanceDate  DateTime?
+  photos               Json[]              // FileInfo[]
+  documents            Json[]              // FileInfo[]
+  isExternal           Boolean             @default(false)
+  externalVendor       String?
+  externalReference    String?
+  triggeredByIncidentId String?
+  notes                String?
+  metadata             Json?
+  createdAt            DateTime            @default(now())
+  createdBy            String?
+  updatedAt            DateTime            @updatedAt
+
+  article              Article             @relation(fields: [articleId], references: [id])
+  branch               Branch              @relation(fields: [branchId], references: [id])
+  assignee             User?               @relation("MaintenanceAssignee", fields: [assignedTo], references: [id])
+  performer            User?               @relation("MaintenancePerformer", fields: [performedBy], references: [id])
+
+  @@index([status])
+  @@index([articleId])
+  @@index([scheduledDate])
+  @@map("maintenance_tasks")
+}
+
+model MaintenanceSchedule {
+  id                String              @id @default(uuid())
+  name              String
+  type              MaintenanceType
+  articleId         String?
+  categoryId        String?
+  branchId          String?
+  intervalType      String              // days | weeks | months | usage_hours | usage_count
+  intervalValue     Int
+  isActive          Boolean             @default(true)
+  lastGeneratedAt   DateTime?
+  nextGenerationAt  DateTime?
+  taskTitle         String
+  taskDescription   String?
+  taskInstructions  String?
+  estimatedDuration Int?
+  priority          MaintenancePriority @default(MEDIUM)
+  checklist         Json[]
+  defaultAssignee   String?
+  notes             String?
+  createdAt         DateTime            @default(now())
+  createdBy         String?
+  updatedAt         DateTime            @updatedAt
+
+  @@map("maintenance_schedules")
+}
+
+// =====================================================
+// BILLING (Quotes & Invoices)
+// =====================================================
+
+model Quote {
+  id                   String      @id @default(uuid())
+  code                 String      @unique
+  version              Int         @default(1)
+  status               QuoteStatus @default(DRAFT)
+  clientId             String
+  clientName           String
+  clientAddress        Json        // Address
+  clientVatNumber      String?
+  projectId            String?
+  reservationIds       String[]
+  branchId             String
+  issueDate            DateTime    @default(now())
+  validUntil           DateTime
+  acceptedAt           DateTime?
+  rejectedAt           DateTime?
+  items                Json[]      // QuoteItem[]
+  sections             Json[]      // QuoteSection[]
+  subtotal             Json        // Money
+  discountAmount       Json?       // Money
+  discountRate         Decimal?    @db.Decimal(5, 2)
+  taxRate              Decimal     @db.Decimal(5, 2)
+  taxAmount            Json        // Money
+  total                Json        // Money
+  paymentTerms         String?
+  paymentTermsDays     Int?
+  conditions           String?
+  notes                String?
+  internalNotes        String?
+  documentUrl          String?
+  documentGeneratedAt  DateTime?
+  convertedToInvoiceId String?
+  metadata             Json?
+  createdAt            DateTime    @default(now())
+  createdBy            String?
+  updatedAt            DateTime    @updatedAt
+
+  client               Client      @relation(fields: [clientId], references: [id])
+  branch               Branch      @relation(fields: [branchId], references: [id])
+
+  @@index([status])
+  @@index([clientId])
+  @@map("quotes")
+}
+
+model Invoice {
+  id                   String        @id @default(uuid())
+  code                 String        @unique
+  invoiceNumber        String        @unique
+  status               InvoiceStatus @default(DRAFT)
+  clientId             String
+  clientName           String
+  clientAddress        Json          // Address
+  clientVatNumber      String?
+  quoteId              String?
+  projectId            String?
+  reservationIds       String[]
+  branchId             String
+  issueDate            DateTime      @default(now())
+  dueDate              DateTime
+  paidAt               DateTime?
+  items                Json[]        // InvoiceItem[]
+  subtotal             Json          // Money
+  discountAmount       Json?         // Money
+  discountRate         Decimal?      @db.Decimal(5, 2)
+  taxRate              Decimal       @db.Decimal(5, 2)
+  taxAmount            Json          // Money
+  total                Json          // Money
+  amountPaid           Json          // Money
+  amountDue            Json          // Money
+  paymentTerms         String?
+  notes                String?
+  internalNotes        String?
+  documentUrl          String?
+  documentGeneratedAt  DateTime?
+  reminderSentAt       DateTime?
+  reminderCount        Int           @default(0)
+  creditNoteIds        String[]
+  creditedAmount       Json?         // Money
+  metadata             Json?
+  createdAt            DateTime      @default(now())
+  createdBy            String?
+  updatedAt            DateTime      @updatedAt
+
+  client               Client        @relation(fields: [clientId], references: [id])
+  branch               Branch        @relation(fields: [branchId], references: [id])
+  payments             Payment[]
+
+  @@index([status])
+  @@index([clientId])
+  @@index([dueDate])
+  @@map("invoices")
+}
+
+model Payment {
+  id            String        @id @default(uuid())
+  invoiceId     String
+  amount        Json          // Money
+  method        PaymentMethod
+  reference     String?
+  transactionId String?
+  paidAt        DateTime      @default(now())
+  notes         String?
+  receiptUrl    String?
+  recordedBy    String
+  createdAt     DateTime      @default(now())
+
+  invoice       Invoice       @relation(fields: [invoiceId], references: [id])
+
+  @@map("payments")
+}
+
+// =====================================================
+// NOTIFICATIONS
+// =====================================================
+
+model Notification {
+  id              String               @id @default(uuid())
+  type            NotificationType
+  category        NotificationCategory
+  channel         NotificationChannel
+  userId          String
+  branchId        String?
+  title           String
+  message         String
+  data            Json?
+  actionUrl       String?
+  actionLabel     String?
+  referenceType   String?
+  referenceId     String?
+  isRead          Boolean              @default(false)
+  readAt          DateTime?
+  isArchived      Boolean              @default(false)
+  archivedAt      DateTime?
+  deliveredAt     DateTime?
+  deliveryStatus  String               @default("pending")
+  deliveryError   String?
+  expiresAt       DateTime?
+  metadata        Json?
+  createdAt       DateTime             @default(now())
+
+  user            User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  branch          Branch?              @relation(fields: [branchId], references: [id])
+
+  @@index([userId, isRead])
+  @@index([userId, category])
+  @@map("notifications")
+}
+
+// =====================================================
+// BRANCH TRANSFERS
+// =====================================================
+
+model BranchTransfer {
+  id                  String         @id @default(uuid())
+  code                String         @unique
+  status              TransferStatus @default(REQUESTED)
+  fromBranchId        String
+  toBranchId          String
+  requestedBy         String
+  requestedAt         DateTime       @default(now())
+  requestReason       String?
+  requestPriority     String         @default("normal")
+  approvedBy          String?
+  approvedAt          DateTime?
+  rejectedBy          String?
+  rejectedAt          DateTime?
+  rejectionReason     String?
+  shippedAt           DateTime?
+  shippedBy           String?
+  trackingNumber      String?
+  carrier             String?
+  estimatedArrival    DateTime?
+  receivedAt          DateTime?
+  receivedBy          String?
+  items               Json[]         // BranchTransferItem[]
+  totalItems          Int            @default(0)
+  receivedItems       Int            @default(0)
+  isBillable          Boolean        @default(false)
+  totalValue          Json?          // Money
+  invoiceId           String?
+  documents           Json[]         // FileInfo[]
+  notes               String?
+  internalNotes       String?
+  metadata            Json?
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+
+  fromBranch          Branch         @relation("TransferFrom", fields: [fromBranchId], references: [id])
+  toBranch            Branch         @relation("TransferTo", fields: [toBranchId], references: [id])
+
+  @@index([status])
+  @@index([fromBranchId])
+  @@index([toBranchId])
+  @@map("branch_transfers")
+}
+
+// =====================================================
+// DOCUMENTS & IMPORT
+// =====================================================
+
+model Document {
+  id                String              @id @default(uuid())
+  filename          String
+  originalName      String
+  mimeType          String
+  size              Int
+  url               String
+  thumbnailUrl      String?
+  type              DocumentType
+  title             String
+  description       String?
+  accessLevel       DocumentAccessLevel @default(INTERNAL)
+  entityType        String?
+  entityId          String?
+  branchId          String
+  version           Int                 @default(1)
+  previousVersionId String?
+  isLatestVersion   Boolean             @default(true)
+  tags              String[]
+  availableOffline  Boolean             @default(false)
+  offlineSyncedAt   DateTime?
+  expiresAt         DateTime?
+  viewCount         Int                 @default(0)
+  lastViewedAt      DateTime?
+  lastViewedBy      String?
+  metadata          Json?
+  createdAt         DateTime            @default(now())
+  createdBy         String?
+  updatedAt         DateTime            @updatedAt
+
+  @@index([entityType, entityId])
+  @@index([branchId])
+  @@map("documents")
+}
+
+model ImportJob {
+  id            String       @id @default(uuid())
+  type          String       // articles | clients | categories | locations | users
+  status        ImportStatus @default(PENDING)
+  branchId      String
+  fileId        String
+  filename      String
+  fileSize      Int
+  mapping       Json         // ImportMapping
+  options       Json         // ImportOptions
+  totalRows     Int          @default(0)
+  processedRows Int          @default(0)
+  successCount  Int          @default(0)
+  errorCount    Int          @default(0)
+  warningCount  Int          @default(0)
+  progress      Int          @default(0)
+  errors        Json[]       // ImportError[]
+  warnings      Json[]       // ImportWarning[]
+  startedAt     DateTime?
+  completedAt   DateTime?
+  duration      Int?         // Milliseconds
+  canRollback   Boolean      @default(true)
+  rolledBackAt  DateTime?
+  rolledBackBy  String?
+  createdIds    String[]
+  updatedIds    String[]
+  metadata      Json?
+  createdAt     DateTime     @default(now())
+  createdBy     String?
+
+  @@map("import_jobs")
+}
+
+// =====================================================
+// AUDIT LOG
+// =====================================================
+
+model AuditLog {
+  id            String   @id @default(uuid())
+  action        String
+  entityType    String
+  entityId      String
+  userId        String
+  branchId      String?
+  changes       Json?    // { before, after, diff }
+  ipAddress     String?
+  userAgent     String?
+  sessionId     String?
+  requestId     String?
+  requestMethod String?
+  requestPath   String?
+  metadata      Json?
+  timestamp     DateTime @default(now())
+
+  user          User     @relation(fields: [userId], references: [id])
+
+  @@index([entityType, entityId])
+  @@index([userId])
+  @@index([timestamp])
+  @@map("audit_logs")
+}
+
+// =====================================================
+// ENUMS
+// =====================================================
+
+enum Currency {
+  CHF
+  EUR
+  USD
+  GBP
+}
+
+enum Language {
+  fr
+  de
+  en
+  it
+}
+
+enum UserRole {
+  SUPER_ADMIN
+  ADMIN
+  PROJECT_MANAGER
+  WAREHOUSE_MANAGER
+  TECHNICIAN
+  VIEWER
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  PENDING
+  SUSPENDED
+}
+
+enum BranchType {
+  HEADQUARTERS
+  BRANCH
+  WAREHOUSE
+  PARTNER
+}
+
+enum ArticleType {
+  SERIALIZED
+  BATCH
+  CONSUMABLE
+}
+
+enum ArticleStatus {
+  AVAILABLE
+  RESERVED
+  IN_USE
+  IN_TRANSIT
+  IN_MAINTENANCE
+  OUT_OF_SERVICE
+  LOST
+  SOLD
+}
+
+enum ArticleCondition {
+  NEW
+  EXCELLENT
+  GOOD
+  FAIR
+  POOR
+  DAMAGED
+}
+
+enum LocationType {
+  WAREHOUSE
+  ZONE
+  SHELF
+  BIN
+  CASE
+  VEHICLE
+  PROJECT_SITE
+}
+
+enum StockMovementType {
+  RECEPTION
+  EXPEDITION
+  TRANSFER
+  ADJUSTMENT_POSITIVE
+  ADJUSTMENT_NEGATIVE
+  RETURN
+  LOSS
+  CONSUMPTION
+}
+
+enum CaseStatus {
+  EMPTY
+  PARTIAL
+  COMPLETE
+  SEALED
+  IN_TRANSIT
+}
+
+enum KitStatus {
+  DRAFT
+  ASSEMBLED
+  VERIFIED
+  IN_USE
+  DISMANTLED
+}
+
+enum ReservationStatus {
+  DRAFT
+  PENDING
+  CONFIRMED
+  PREPARING
+  READY
+  DISPATCHED
+  IN_USE
+  RETURNING
+  RETURNED
+  COMPLETED
+  CANCELLED
+}
+
+enum ProjectStatus {
+  DRAFT
+  PLANNED
+  ACTIVE
+  ON_HOLD
+  COMPLETED
+  CANCELLED
+  ARCHIVED
+}
+
+enum ProjectType {
+  RENTAL
+  INTERNAL
+  SERVICE
+  MAINTENANCE
+}
+
+enum PickingStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  VERIFIED
+  CANCELLED
+}
+
+enum ReturnCheckStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  DISCREPANCY
+}
+
+enum IncidentType {
+  DAMAGE
+  LOSS
+  THEFT
+  MALFUNCTION
+  MISSING_ACCESSORY
+  WRONG_ITEM
+  OTHER
+}
+
+enum IncidentStatus {
+  REPORTED
+  INVESTIGATING
+  RESOLVED
+  CHARGED
+  CLOSED
+}
+
+enum MaintenanceType {
+  PREVENTIVE
+  CORRECTIVE
+  INSPECTION
+  CALIBRATION
+  CLEANING
+  UPGRADE
+}
+
+enum MaintenanceStatus {
+  SCHEDULED
+  IN_PROGRESS
+  WAITING_PARTS
+  COMPLETED
+  CANCELLED
+}
+
+enum MaintenancePriority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum QuoteStatus {
+  DRAFT
+  SENT
+  VIEWED
+  ACCEPTED
+  REJECTED
+  EXPIRED
+  CONVERTED
+}
+
+enum InvoiceStatus {
+  DRAFT
+  SENT
+  VIEWED
+  PARTIAL
+  PAID
+  OVERDUE
+  CANCELLED
+  REFUNDED
+}
+
+enum PaymentMethod {
+  BANK_TRANSFER
+  CREDIT_CARD
+  CASH
+  CHECK
+  PAYPAL
+  OTHER
+}
+
+enum DocumentType {
+  CONTRACT
+  RIDER
+  TECHNICAL_SHEET
+  PLAN
+  PHOTO
+  INVOICE
+  QUOTE
+  DELIVERY_NOTE
+  RETURN_NOTE
+  INSURANCE_CERT
+  OTHER
+}
+
+enum DocumentAccessLevel {
+  PUBLIC
+  INTERNAL
+  RESTRICTED
+  CONFIDENTIAL
+}
+
+enum NotificationType {
+  INFO
+  WARNING
+  ERROR
+  SUCCESS
+  ACTION_REQUIRED
+}
+
+enum NotificationChannel {
+  IN_APP
+  EMAIL
+  PUSH
+  SMS
+}
+
+enum NotificationCategory {
+  RESERVATION
+  PROJECT
+  STOCK
+  MAINTENANCE
+  BILLING
+  SYSTEM
+  USER
+}
+
+enum TransferStatus {
+  REQUESTED
+  APPROVED
+  IN_TRANSIT
+  RECEIVED
+  CANCELLED
+}
+
+enum ImportStatus {
+  PENDING
+  VALIDATING
+  PROCESSING
+  COMPLETED
+  FAILED
+  PARTIAL
+}
