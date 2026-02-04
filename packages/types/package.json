@@ -2,33 +2,34 @@
   "name": "@matflow/types",
   "version": "0.1.0",
   "private": true,
-  "description": "Types TypeScript partagés pour MatFlow",
-  "main": "./dist/index.js",
-  "module": "./dist/index.mjs",
-  "types": "./dist/index.d.ts",
+  "description": "Types TypeScript partages pour MatFlow",
+  "main": "./src/index.ts",
+  "module": "./src/index.ts",
+  "types": "./src/index.ts",
   "exports": {
     ".": {
-      "import": "./dist/index.mjs",
-      "require": "./dist/index.js",
-      "types": "./dist/index.d.ts"
+      "import": "./src/index.ts",
+      "require": "./src/index.ts",
+      "types": "./src/index.ts"
     },
     "./entities": {
-      "import": "./dist/entities/index.mjs",
-      "require": "./dist/entities/index.js",
-      "types": "./dist/entities/index.d.ts"
+      "import": "./src/entities/index.ts",
+      "require": "./src/entities/index.ts",
+      "types": "./src/entities/index.ts"
     },
     "./api": {
-      "import": "./dist/api/index.mjs",
-      "require": "./dist/api/index.js",
-      "types": "./dist/api/index.d.ts"
+      "import": "./src/api/index.ts",
+      "require": "./src/api/index.ts",
+      "types": "./src/api/index.ts"
     },
     "./enums": {
-      "import": "./dist/enums/index.mjs",
-      "require": "./dist/enums/index.js",
-      "types": "./dist/enums/index.d.ts"
+      "import": "./src/enums/index.ts",
+      "require": "./src/enums/index.ts",
+      "types": "./src/enums/index.ts"
     }
   },
   "files": [
+    "src",
     "dist"
   ],
   "scripts": {
