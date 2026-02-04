@@ -29,13 +29,25 @@ interface AuthState {
   setUser: (user: User) => void;
 }
 
+// Dev mode mock user for testing mockups
+const DEV_MODE = import.meta.env.DEV;
+const MOCK_USER: User = {
+  id: 'dev-user-1',
+  email: 'admin@matflow.ch',
+  displayName: 'Admin Dev',
+  role: 'admin' as UserRole,
+  branchId: 'branch-1',
+  branchName: 'Lausanne',
+  permissions: ['*'],
+};
+
 export const useAuthStore = create<AuthState>()(
   persist(
     (set) => ({
-      user: null,
-      accessToken: null,
-      refreshToken: null,
-      isAuthenticated: false,
+      user: DEV_MODE ? MOCK_USER : null,
+      accessToken: DEV_MODE ? 'dev-token' : null,
+      refreshToken: DEV_MODE ? 'dev-refresh-token' : null,
+      isAuthenticated: DEV_MODE,
 
       login: (user, accessToken, refreshToken) =>
         set({
@@ -71,6 +83,19 @@ export const useAuthStore = create<AuthState>()(
         refreshToken: state.refreshToken,
         isAuthenticated: state.isAuthenticated,
       }),
+      // In dev mode, always use mock auth (ignore persisted state)
+      merge: (persistedState, currentState) => {
+        if (DEV_MODE) {
+          return {
+            ...currentState,
+            user: MOCK_USER,
+            accessToken: 'dev-token',
+            refreshToken: 'dev-refresh-token',
+            isAuthenticated: true,
+          };
+        }
+        return { ...currentState, ...(persistedState as Partial<AuthState>) };
+      },
     }
   )
 );
