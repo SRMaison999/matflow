@@ -1,4 +1,4 @@
-import { forwardRef, SelectHTMLAttributes, useId } from 'react';
+import { forwardRef, SelectHTMLAttributes, useId, ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 import { ChevronDown } from 'lucide-react';
 
@@ -9,15 +9,16 @@ export interface SelectOption {
 }
 
 export interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
-  options: SelectOption[];
+  options?: SelectOption[];
   placeholder?: string;
   error?: string;
   label?: string;
   hint?: string;
+  children?: ReactNode;
 }
 
 export const Select = forwardRef<HTMLSelectElement, SelectProps>(
-  ({ className, options, placeholder, error, label, hint, required, ...props }, ref) => {
+  ({ className, options, placeholder, error, label, hint, required, children, ...props }, ref) => {
     const id = useId();
 
     const select = (
@@ -39,11 +40,12 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
               {placeholder}
             </option>
           )}
-          {options.map((option) => (
+          {/* Support both options prop and children */}
+          {options ? options.map((option) => (
             <option key={option.value} value={option.value} disabled={option.disabled}>
               {option.label}
             </option>
-          ))}
+          )) : children}
         </select>
         <ChevronDown className="absolute right-3 top-3 h-4 w-4 opacity-50 pointer-events-none" />
       </div>
