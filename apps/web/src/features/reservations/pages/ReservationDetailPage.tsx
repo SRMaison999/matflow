@@ -1,8 +1,12 @@
+import { Calendar } from 'lucide-react';
+import { PlaceholderPage } from '@/components/ui';
+
 export default function ReservationDetailPage() {
   return (
-    <div className="space-y-6">
-      <h1 className="text-3xl font-bold">Détail réservation</h1>
-      <p className="text-muted-foreground">Page en construction</p>
-    </div>
+    <PlaceholderPage
+      title="Detail Reservation"
+      description="Visualisation et modification de la reservation."
+      icon={Calendar}
+    />
   );
 }

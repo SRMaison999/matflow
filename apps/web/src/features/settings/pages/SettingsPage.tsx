@@ -1,9 +1,12 @@
-// Placeholder page
-export default function Page() {
+import { Settings } from 'lucide-react';
+import { PlaceholderPage } from '@/components/ui';
+
+export default function SettingsPage() {
   return (
-    <div className="space-y-6">
-      <h1 className="text-3xl font-bold capitalize">PLACEHOLDER</h1>
-      <p className="text-muted-foreground">Page en construction</p>
-    </div>
+    <PlaceholderPage
+      title="Parametres"
+      description="Configuration de l'application."
+      icon={Settings}
+    />
   );
 }

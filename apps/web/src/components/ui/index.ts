@@ -1,8 +1,13 @@
-// =====================================================
-// MatFlow - UI Components Index
-// =====================================================
-
+export * from './Badge';
 export * from './Button';
+export * from './Card';
+export * from './Checkbox';
+export * from './FormField';
 export * from './Input';
 export * from './LoadingScreen';
+export * from './Modal';
+export * from './PlaceholderPage';
+export * from './Select';
+export * from './Table';
+export * from './Tabs';
 export * from './Toaster';

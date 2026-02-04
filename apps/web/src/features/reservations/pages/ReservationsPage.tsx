@@ -1,9 +1,12 @@
-// Placeholder page
-export default function Page() {
+import { Calendar } from 'lucide-react';
+import { PlaceholderPage } from '@/components/ui';
+
+export default function ReservationsPage() {
   return (
-    <div className="space-y-6">
-      <h1 className="text-3xl font-bold capitalize">PLACEHOLDER</h1>
-      <p className="text-muted-foreground">Page en construction</p>
-    </div>
+    <PlaceholderPage
+      title="Reservations"
+      description="Gestion des reservations de materiel."
+      icon={Calendar}
+    />
   );
 }

@@ -1,8 +1,12 @@
+import { FolderKanban } from 'lucide-react';
+import { PlaceholderPage } from '@/components/ui';
+
 export default function ProjectDetailPage() {
   return (
-    <div className="space-y-6">
-      <h1 className="text-3xl font-bold">Détail projet</h1>
-      <p className="text-muted-foreground">Page en construction</p>
-    </div>
+    <PlaceholderPage
+      title="Detail Projet"
+      description="Visualisation et modification du projet."
+      icon={FolderKanban}
+    />
   );
 }
